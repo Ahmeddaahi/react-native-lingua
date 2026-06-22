@@ -1,5 +1,5 @@
 import { colors } from "@/theme";
-import { Text, View } from "@/tw";
+import { Text, View, Link } from "@/tw";
 import { ScrollView } from "react-native";
 
 /**
@@ -21,6 +21,23 @@ export default function Index() {
           Design System Preview
         </Text>
       </View>
+
+      {/* ── Onboarding Navigation Link ── */}
+      <Link href="/onboarding" className="mx-4 mt-5">
+        <View className="bg-lingua-purple rounded-2xl px-5 py-4 flex-row items-center justify-between">
+          <View className="gap-0.5">
+            <Text className="font-[Poppins_700Bold] text-[15px] text-white">
+              Onboarding Screen
+            </Text>
+            <Text className="font-[Poppins_400Regular] text-[12px] text-white opacity-70">
+              Tap to preview the onboarding flow
+            </Text>
+          </View>
+          <Text className="font-[Poppins_700Bold] text-[18px] text-white opacity-80">
+            →
+          </Text>
+        </View>
+      </Link>
 
       <View className="px-4 pt-6 gap-8">
 
