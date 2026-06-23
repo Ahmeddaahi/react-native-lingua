@@ -77,7 +77,7 @@ export default function Onboarding() {
         {/* ── Get Started Button ── */}
         <View className="px-6 pb-10">
           <Pressable
-            onPress={() => router.push("/(tabs)")}
+            onPress={() => router.push("/sign-up")}
             className="bg-lingua-purple rounded-2xl py-5 flex-row items-center justify-center"
           >
             <Text className="font-[Poppins_700Bold] text-[17px] text-white mr-2">
