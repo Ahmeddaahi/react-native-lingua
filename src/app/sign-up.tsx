@@ -1,8 +1,10 @@
 import { images } from "@/constants/images";
 import { Text, View, TextInput } from "@/tw";
+import { useSignUp, useSSO } from "@clerk/expo";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
+  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -11,29 +13,107 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as WebBrowser from "expo-web-browser";
+import * as Linking from "expo-linking";
 import VerificationModal from "@/components/VerificationModal";
+
+// Required for OAuth redirect to complete
+WebBrowser.maybeCompleteAuthSession();
 
 /**
  * Sign Up Screen
  * Matches the provided design: back arrow, headline, mascot, email + password
  * inputs, Sign Up CTA, social auth buttons, and "Already have an account?" link.
+ *
+ * Wired to Clerk's useSignUp hook for real email+password sign-up
+ * with email verification code flow.
  */
 export default function SignUp() {
   const router = useRouter();
+  const { signUp, errors: clerkErrors, fetchStatus } = useSignUp();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const [verificationError, setVerificationError] = useState("");
+  const [verificationLoading, setVerificationLoading] = useState(false);
 
-  function handleSignUp() {
-    if (!email) return;
-    setModalVisible(true);
+  const isLoading = fetchStatus === "fetching";
+
+  /**
+   * Step 1: Create the sign-up with email + password, then send verification code.
+   */
+  async function handleSignUp() {
+    if (!email || !password) return;
+
+    try {
+      const { error } = await signUp.password({
+        emailAddress: email,
+        password,
+      });
+
+      if (error) {
+        console.error("Sign-up error:", JSON.stringify(error, null, 2));
+        return;
+      }
+
+      // Send email verification code
+      await signUp.verifications.sendEmailCode();
+      setModalVisible(true);
+    } catch (err) {
+      console.error("Sign-up error:", err);
+    }
   }
 
-  function handleVerified() {
-    setModalVisible(false);
-    router.replace("/");
+  /**
+   * Step 2: Verify the email code entered in the modal.
+   */
+  async function handleVerifyCode(code: string) {
+    setVerificationError("");
+    setVerificationLoading(true);
+
+    try {
+      await signUp.verifications.verifyEmailCode({ code });
+
+      if (signUp.status === "complete") {
+        await signUp.finalize({
+          navigate: ({ session, decorateUrl }) => {
+            if (session?.currentTask) {
+              console.log("Session task:", session.currentTask);
+              return;
+            }
+            setModalVisible(false);
+            router.replace("/");
+          },
+        });
+      } else {
+        console.error("Sign-up not complete:", signUp.status);
+        setVerificationError("Verification incomplete. Please try again.");
+      }
+    } catch (err: unknown) {
+      console.error("Verification error:", err);
+      const message =
+        err && typeof err === "object" && "errors" in err
+          ? (err as { errors: { message: string }[] }).errors?.[0]?.message
+          : "Invalid verification code. Please try again.";
+      setVerificationError(message || "Invalid verification code.");
+    } finally {
+      setVerificationLoading(false);
+    }
+  }
+
+  /**
+   * Resend the email verification code.
+   */
+  async function handleResendCode() {
+    setVerificationError("");
+    try {
+      await signUp.verifications.sendEmailCode();
+    } catch (err) {
+      console.error("Resend error:", err);
+      setVerificationError("Failed to resend code. Please try again.");
+    }
   }
 
   return (
@@ -99,6 +179,12 @@ export default function SignUp() {
                 id="sign-up-email-input"
               />
             </View>
+            {/* Clerk email error */}
+            {clerkErrors?.fields?.emailAddress ? (
+              <Text className="font-[Poppins_400Regular] text-[12px] text-error -mt-1">
+                {clerkErrors.fields.emailAddress.message}
+              </Text>
+            ) : null}
 
             {/* Password input */}
             <View style={styles.inputCard}>
@@ -126,16 +212,26 @@ export default function SignUp() {
                 </TouchableOpacity>
               </View>
             </View>
+            {/* Clerk password error */}
+            {clerkErrors?.fields?.password ? (
+              <Text className="font-[Poppins_400Regular] text-[12px] text-error -mt-1">
+                {clerkErrors.fields.password.message}
+              </Text>
+            ) : null}
 
             {/* Sign Up button */}
             <TouchableOpacity
               onPress={handleSignUp}
-              style={styles.primaryBtn}
+              style={[
+                styles.primaryBtn,
+                (!email || !password || isLoading) && styles.disabledBtn,
+              ]}
               activeOpacity={0.85}
+              disabled={!email || !password || isLoading}
               id="sign-up-btn"
             >
               <Text className="font-[Poppins_700Bold] text-[17px] text-white">
-                Sign Up
+                {isLoading ? "Signing up…" : "Sign Up"}
               </Text>
             </TouchableOpacity>
 
@@ -155,7 +251,7 @@ export default function SignUp() {
               iconColor="#4285F4"
               iconBg="#EEF4FF"
               label="Continue with Google"
-              onPress={() => {}}
+              strategy="oauth_google"
             />
             <SocialButton
               id="sign-up-facebook-btn"
@@ -163,7 +259,7 @@ export default function SignUp() {
               iconColor="#FFFFFF"
               iconBg="#1877F2"
               label="Continue with Facebook"
-              onPress={() => {}}
+              strategy="oauth_facebook"
             />
             <SocialButton
               id="sign-up-apple-btn"
@@ -171,7 +267,7 @@ export default function SignUp() {
               iconColor="#FFFFFF"
               iconBg="#000000"
               label="Continue with Apple"
-              onPress={() => {}}
+              strategy="oauth_apple"
               isApple
             />
           </View>
@@ -200,8 +296,11 @@ export default function SignUp() {
       <VerificationModal
         visible={modalVisible}
         email={email}
-        onVerified={handleVerified}
+        onSubmitCode={handleVerifyCode}
+        onResendCode={handleResendCode}
         onClose={() => setModalVisible(false)}
+        error={verificationError}
+        loading={verificationLoading}
       />
     </SafeAreaView>
   );
@@ -215,7 +314,7 @@ type SocialButtonProps = {
   iconColor: string;
   iconBg: string;
   label: string;
-  onPress: () => void;
+  strategy: "oauth_google" | "oauth_facebook" | "oauth_apple";
   isApple?: boolean;
 };
 
@@ -225,12 +324,35 @@ function SocialButton({
   iconColor,
   iconBg,
   label,
-  onPress,
+  strategy,
   isApple,
 }: SocialButtonProps) {
+  const { startSSOFlow } = useSSO();
+  const router = useRouter();
+
+  async function handlePress() {
+    try {
+      const { createdSessionId, setActive } = await startSSOFlow({
+        strategy,
+        redirectUrl: Linking.createURL("/oauth-callback"),
+      });
+
+      if (createdSessionId && setActive) {
+        await setActive({ session: createdSessionId });
+        router.replace("/");
+      }
+    } catch (err) {
+      console.error(`${strategy} error:`, err);
+      Alert.alert(
+        "Sign in failed",
+        "Could not complete social sign-in. Please try again."
+      );
+    }
+  }
+
   return (
     <TouchableOpacity
-      onPress={onPress}
+      onPress={handlePress}
       activeOpacity={0.8}
       style={styles.socialBtn}
       id={id}
@@ -292,6 +414,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
+  },
+  disabledBtn: {
+    opacity: 0.5,
   },
   dividerRow: {
     flexDirection: "row",

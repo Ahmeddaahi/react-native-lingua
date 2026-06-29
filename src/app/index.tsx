@@ -1,25 +1,51 @@
 import { colors } from "@/theme";
 import { Text, View, Link } from "@/tw";
-import { ScrollView } from "react-native";
+import { useAuth } from "@clerk/expo";
+import { Redirect } from "expo-router";
+import { ScrollView, TouchableOpacity } from "react-native";
 
 /**
- * Design System Preview Screen
+ * Design System Preview Screen (Home)
  * Showcases the Lingua brand colors, typography, and spacing tokens.
+ * Protected — redirects to onboarding if not signed in.
  */
 export default function Index() {
+  const { isSignedIn, isLoaded, signOut } = useAuth();
+
+  // Wait for Clerk to load before deciding
+  if (!isLoaded) return null;
+
+  // Not signed in → go to onboarding
+  if (!isSignedIn) return <Redirect href="/onboarding" />;
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={{ paddingBottom: 40 }}
     >
       {/* ── Header ── */}
-      <View className="bg-lingua-purple px-6 pt-16 pb-10">
-        <Text className="font-[Poppins_700Bold] text-[32px] leading-[38px] text-white">
-          Lingua
-        </Text>
-        <Text className="font-[Poppins_400Regular] text-[14px] leading-[22px] text-white opacity-80 mt-1">
-          Design System Preview
-        </Text>
+      <View className="bg-lingua-purple px-6 pt-16 pb-10 flex-row items-center justify-between">
+        <View>
+          <Text className="font-[Poppins_700Bold] text-[32px] leading-[38px] text-white">
+            Lingua
+          </Text>
+          <Text className="font-[Poppins_400Regular] text-[14px] leading-[22px] text-white opacity-80 mt-1">
+            Design System Preview
+          </Text>
+        </View>
+        <TouchableOpacity
+          onPress={() => signOut()}
+          activeOpacity={0.7}
+          style={{
+            backgroundColor: "rgba(255, 255, 255, 0.2)",
+            paddingHorizontal: 16,
+            paddingVertical: 8,
+            borderRadius: 9999,
+          }}
+        >
+          <Text className="font-[Poppins_600SemiBold] text-[13px] text-white">
+            Sign Out
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* ── Onboarding Navigation Link ── */}
