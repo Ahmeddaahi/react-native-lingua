@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Animated,
   KeyboardAvoidingView,
   Modal,
@@ -15,8 +16,16 @@ import {
 type Props = {
   visible: boolean;
   email: string;
-  onVerified: () => void;
+  /** Called when the user enters all 6 digits. Parent handles Clerk verification. */
+  onSubmitCode: (code: string) => Promise<void>;
+  /** Called when user taps "Resend code". Parent re-sends via Clerk. */
+  onResendCode: () => Promise<void>;
+  /** Called when the modal is dismissed (close button or backdrop tap). */
   onClose: () => void;
+  /** Optional error message from Clerk verification (e.g. invalid code). */
+  error?: string;
+  /** When true, disables inputs and shows a loading indicator. */
+  loading?: boolean;
 };
 
 const CODE_LENGTH = 6;
@@ -24,13 +33,17 @@ const CODE_LENGTH = 6;
 /**
  * VerificationModal
  * Shows a 6-digit OTP input above the keyboard.
- * Auto-navigates (calls onVerified) when all 6 digits are entered.
+ * Calls onSubmitCode when all 6 digits are entered — the parent screen
+ * handles the actual Clerk verification and navigates on success.
  */
 export default function VerificationModal({
   visible,
   email,
-  onVerified,
+  onSubmitCode,
+  onResendCode,
   onClose,
+  error,
+  loading = false,
 }: Props) {
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(""));
   const inputRefs = useRef<(TextInput | null)[]>([]);
@@ -74,26 +87,30 @@ export default function VerificationModal({
   }, [visible]);
 
   function handleChange(text: string, index: number) {
+    if (loading) return;
+
     const digit = text.replace(/[^0-9]/g, "").slice(-1);
     const newCode = [...code];
     newCode[index] = digit;
     setCode(newCode);
 
-    // Auto-navigate when last digit is entered
+    // Auto-advance to next input
     if (digit && index < CODE_LENGTH - 1) {
       inputRefs.current[index + 1]?.focus();
     }
 
+    // When last digit is entered, submit to parent
     if (digit && index === CODE_LENGTH - 1) {
-      // All 6 digits filled
       const full = newCode.join("");
       if (full.length === CODE_LENGTH) {
-        setTimeout(() => onVerified(), 300);
+        onSubmitCode(full);
       }
     }
   }
 
   function handleKeyPress(key: string, index: number) {
+    if (loading) return;
+
     if (key === "Backspace" && !code[index] && index > 0) {
       const newCode = [...code];
       newCode[index - 1] = "";
@@ -169,6 +186,7 @@ export default function VerificationModal({
                   style={[
                     styles.otpBox,
                     code[i] ? styles.otpBoxFilled : styles.otpBoxEmpty,
+                    error ? styles.otpBoxError : null,
                   ]}
                   value={code[i]}
                   onChangeText={(t) => handleChange(t, i)}
@@ -180,15 +198,30 @@ export default function VerificationModal({
                   textAlign="center"
                   selectTextOnFocus
                   caretHidden
+                  editable={!loading}
                   id={`otp-input-${i}`}
                 />
               ))}
           </View>
 
+          {/* Error message */}
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+          {/* Loading indicator */}
+          {loading ? (
+            <ActivityIndicator
+              size="small"
+              color="#6C4EF5"
+              style={styles.loader}
+            />
+          ) : null}
+
           {/* Resend */}
           <TouchableOpacity
             activeOpacity={0.7}
             style={styles.resendBtn}
+            onPress={onResendCode}
+            disabled={loading}
             id="verification-resend-btn"
           >
             <Text style={styles.resendText}>
@@ -300,6 +333,20 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#6C4EF5",
     backgroundColor: "#EEF2FF",
+  },
+  otpBoxError: {
+    borderColor: "#FF4D4F",
+  },
+  errorText: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 13,
+    color: "#FF4D4F",
+    textAlign: "center",
+    marginTop: -16,
+    marginBottom: 12,
+  },
+  loader: {
+    marginBottom: 8,
   },
   resendBtn: {
     paddingVertical: 8,

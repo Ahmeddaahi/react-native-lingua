@@ -1,15 +1,24 @@
 import { images } from "@/constants/images";
 import { Text, View, Pressable } from "@/tw";
-import { useRouter } from "expo-router";
+import { useAuth } from "@clerk/expo";
+import { Redirect, useRouter } from "expo-router";
 import { Image, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 /**
  * Onboarding Screen
  * Introduces Lingua to new users with the mascot, headline, and CTA.
+ * Redirects to home if the user is already signed in.
  */
 export default function Onboarding() {
   const router = useRouter();
+  const { isSignedIn, isLoaded } = useAuth();
+
+  // Wait for Clerk to load before deciding
+  if (!isLoaded) return null;
+
+  // Already signed in → go home
+  if (isSignedIn) return <Redirect href="/" />;
 
   return (
     <SafeAreaView style={styles.safeArea}>

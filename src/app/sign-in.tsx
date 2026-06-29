@@ -1,8 +1,10 @@
 import { images } from "@/constants/images";
 import { Text, View, TextInput } from "@/tw";
+import { useSignIn, useSSO } from "@clerk/expo";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
+  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -11,26 +13,128 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as WebBrowser from "expo-web-browser";
+import * as Linking from "expo-linking";
 import VerificationModal from "@/components/VerificationModal";
+
+// Required for OAuth redirect to complete
+WebBrowser.maybeCompleteAuthSession();
 
 /**
  * Sign In Screen
- * Same layout as Sign Up but with sign-in copy and no password field.
+ * Same layout as Sign Up but with sign-in copy.
+ * Now includes a password field and is wired to Clerk's useSignIn hook.
  */
 export default function SignIn() {
   const router = useRouter();
+  const { signIn, errors: clerkErrors, fetchStatus } = useSignIn();
 
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const [verificationError, setVerificationError] = useState("");
+  const [verificationLoading, setVerificationLoading] = useState(false);
 
-  function handleSignIn() {
-    if (!email) return;
-    setModalVisible(true);
+  const isLoading = fetchStatus === "fetching";
+
+  /**
+   * Attempt sign-in with email + password.
+   * Handles complete, needs_client_trust (MFA), and needs_second_factor states.
+   */
+  async function handleSignIn() {
+    if (!email || !password) return;
+
+    try {
+      const { error } = await signIn.password({
+        emailAddress: email,
+        password,
+      });
+
+      if (error) {
+        console.error("Sign-in error:", JSON.stringify(error, null, 2));
+        return;
+      }
+
+      if (signIn.status === "complete") {
+        await signIn.finalize({
+          navigate: ({ session, decorateUrl }) => {
+            if (session?.currentTask) {
+              console.log("Session task:", session.currentTask);
+              return;
+            }
+            router.replace("/");
+          },
+        });
+      } else if (signIn.status === "needs_second_factor") {
+        // MFA required — show verification modal for email code
+        await signIn.mfa.sendEmailCode();
+        setModalVisible(true);
+      } else if (signIn.status === "needs_client_trust") {
+        // Client trust verification — send email code
+        const emailCodeFactor = signIn.supportedSecondFactors?.find(
+          (factor: { strategy: string }) => factor.strategy === "email_code"
+        );
+        if (emailCodeFactor) {
+          await signIn.mfa.sendEmailCode();
+          setModalVisible(true);
+        }
+      } else {
+        console.error("Sign-in not complete:", signIn.status);
+      }
+    } catch (err) {
+      console.error("Sign-in error:", err);
+    }
   }
 
-  function handleVerified() {
-    setModalVisible(false);
-    router.replace("/");
+  /**
+   * Verify the MFA/trust email code entered in the modal.
+   */
+  async function handleVerifyCode(code: string) {
+    setVerificationError("");
+    setVerificationLoading(true);
+
+    try {
+      await signIn.mfa.verifyEmailCode({ code });
+
+      if (signIn.status === "complete") {
+        await signIn.finalize({
+          navigate: ({ session, decorateUrl }) => {
+            if (session?.currentTask) {
+              console.log("Session task:", session.currentTask);
+              return;
+            }
+            setModalVisible(false);
+            router.replace("/");
+          },
+        });
+      } else {
+        console.error("Sign-in not complete after verify:", signIn.status);
+        setVerificationError("Verification incomplete. Please try again.");
+      }
+    } catch (err: unknown) {
+      console.error("Verification error:", err);
+      const message =
+        err && typeof err === "object" && "errors" in err
+          ? (err as { errors: { message: string }[] }).errors?.[0]?.message
+          : "Invalid verification code. Please try again.";
+      setVerificationError(message || "Invalid verification code.");
+    } finally {
+      setVerificationLoading(false);
+    }
+  }
+
+  /**
+   * Resend the MFA email code.
+   */
+  async function handleResendCode() {
+    setVerificationError("");
+    try {
+      await signIn.mfa.sendEmailCode();
+    } catch (err) {
+      console.error("Resend error:", err);
+      setVerificationError("Failed to resend code. Please try again.");
+    }
   }
 
   return (
@@ -96,16 +200,59 @@ export default function SignIn() {
                 id="sign-in-email-input"
               />
             </View>
+            {/* Clerk email/identifier error */}
+            {clerkErrors?.fields?.identifier ? (
+              <Text className="font-[Poppins_400Regular] text-[12px] text-error -mt-1">
+                {clerkErrors.fields.identifier.message}
+              </Text>
+            ) : null}
+
+            {/* Password input */}
+            <View style={styles.inputCard}>
+              <Text className="font-[Poppins_400Regular] text-[12px] text-text-secondary mb-1">
+                Password
+              </Text>
+              <View style={styles.passwordRow}>
+                <TextInput
+                  className="font-[Poppins_400Regular] text-[15px] text-text-primary flex-1"
+                  placeholder="••••••••"
+                  placeholderTextColor="#9CA3AF"
+                  secureTextEntry={!showPassword}
+                  value={password}
+                  onChangeText={setPassword}
+                  id="sign-in-password-input"
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword((v) => !v)}
+                  activeOpacity={0.7}
+                  id="sign-in-toggle-password"
+                >
+                  <Text className="text-[18px] text-text-secondary">
+                    {showPassword ? "🙈" : "👁"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            {/* Clerk password error */}
+            {clerkErrors?.fields?.password ? (
+              <Text className="font-[Poppins_400Regular] text-[12px] text-error -mt-1">
+                {clerkErrors.fields.password.message}
+              </Text>
+            ) : null}
 
             {/* Sign In button */}
             <TouchableOpacity
               onPress={handleSignIn}
-              style={styles.primaryBtn}
+              style={[
+                styles.primaryBtn,
+                (!email || !password || isLoading) && styles.disabledBtn,
+              ]}
               activeOpacity={0.85}
+              disabled={!email || !password || isLoading}
               id="sign-in-btn"
             >
               <Text className="font-[Poppins_700Bold] text-[17px] text-white">
-                Sign In
+                {isLoading ? "Signing in…" : "Sign In"}
               </Text>
             </TouchableOpacity>
 
@@ -125,7 +272,7 @@ export default function SignIn() {
               iconColor="#4285F4"
               iconBg="#EEF4FF"
               label="Continue with Google"
-              onPress={() => {}}
+              strategy="oauth_google"
             />
             <SocialButton
               id="sign-in-facebook-btn"
@@ -133,7 +280,7 @@ export default function SignIn() {
               iconColor="#FFFFFF"
               iconBg="#1877F2"
               label="Continue with Facebook"
-              onPress={() => {}}
+              strategy="oauth_facebook"
             />
             <SocialButton
               id="sign-in-apple-btn"
@@ -141,7 +288,7 @@ export default function SignIn() {
               iconColor="#FFFFFF"
               iconBg="#000000"
               label="Continue with Apple"
-              onPress={() => {}}
+              strategy="oauth_apple"
               isApple
             />
           </View>
@@ -166,12 +313,15 @@ export default function SignIn() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* ── Verification Modal ── */}
+      {/* ── Verification Modal (for MFA/trust verification) ── */}
       <VerificationModal
         visible={modalVisible}
         email={email}
-        onVerified={handleVerified}
+        onSubmitCode={handleVerifyCode}
+        onResendCode={handleResendCode}
         onClose={() => setModalVisible(false)}
+        error={verificationError}
+        loading={verificationLoading}
       />
     </SafeAreaView>
   );
@@ -185,7 +335,7 @@ type SocialButtonProps = {
   iconColor: string;
   iconBg: string;
   label: string;
-  onPress: () => void;
+  strategy: "oauth_google" | "oauth_facebook" | "oauth_apple";
   isApple?: boolean;
 };
 
@@ -195,12 +345,35 @@ function SocialButton({
   iconColor,
   iconBg,
   label,
-  onPress,
+  strategy,
   isApple,
 }: SocialButtonProps) {
+  const { startSSOFlow } = useSSO();
+  const router = useRouter();
+
+  async function handlePress() {
+    try {
+      const { createdSessionId, setActive } = await startSSOFlow({
+        strategy,
+        redirectUrl: Linking.createURL("/oauth-callback"),
+      });
+
+      if (createdSessionId && setActive) {
+        await setActive({ session: createdSessionId });
+        router.replace("/");
+      }
+    } catch (err) {
+      console.error(`${strategy} error:`, err);
+      Alert.alert(
+        "Sign in failed",
+        "Could not complete social sign-in. Please try again."
+      );
+    }
+  }
+
   return (
     <TouchableOpacity
-      onPress={onPress}
+      onPress={handlePress}
       activeOpacity={0.8}
       style={styles.socialBtn}
       id={id}
@@ -247,6 +420,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
+  passwordRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   primaryBtn: {
     backgroundColor: "#6C4EF5",
     borderRadius: 16,
@@ -258,6 +435,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
+  },
+  disabledBtn: {
+    opacity: 0.5,
   },
   dividerRow: {
     flexDirection: "row",
