@@ -47,21 +47,21 @@ export default function VerificationModal({
 }: Props) {
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(""));
   const inputRefs = useRef<(TextInput | null)[]>([]);
-  const slideAnim = useRef(new Animated.Value(60)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(60));
+  const opacityAnim = useRef(new Animated.Value(0));
 
   // Animate in/out
   useEffect(() => {
     if (visible) {
-      setCode(Array(CODE_LENGTH).fill(""));
+      setTimeout(() => setCode(Array(CODE_LENGTH).fill("")), 0);
       Animated.parallel([
-        Animated.spring(slideAnim, {
+        Animated.spring(slideAnim.current, {
           toValue: 0,
           useNativeDriver: true,
           damping: 18,
           stiffness: 200,
         }),
-        Animated.timing(opacityAnim, {
+        Animated.timing(opacityAnim.current, {
           toValue: 1,
           duration: 220,
           useNativeDriver: true,
@@ -72,19 +72,19 @@ export default function VerificationModal({
       });
     } else {
       Animated.parallel([
-        Animated.timing(slideAnim, {
+        Animated.timing(slideAnim.current, {
           toValue: 60,
           duration: 180,
           useNativeDriver: true,
         }),
-        Animated.timing(opacityAnim, {
+        Animated.timing(opacityAnim.current, {
           toValue: 0,
           duration: 180,
           useNativeDriver: true,
         }),
       ]).start();
     }
-  }, [visible]);
+  }, [visible, slideAnim, opacityAnim]);
 
   function handleChange(text: string, index: number) {
     if (loading) return;
@@ -144,8 +144,8 @@ export default function VerificationModal({
           style={[
             styles.sheet,
             {
-              opacity: opacityAnim,
-              transform: [{ translateY: slideAnim }],
+              opacity: opacityAnim.current,
+              transform: [{ translateY: slideAnim.current }],
             },
           ]}
         >
@@ -237,7 +237,11 @@ export default function VerificationModal({
 
 const styles = StyleSheet.create({
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: "rgba(13,19,43,0.45)",
   },
   kavContainer: {

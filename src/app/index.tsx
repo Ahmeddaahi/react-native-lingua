@@ -65,6 +65,24 @@ export default function Index() {
         </View>
       </Link>
 
+      {/* ── Language Selection Navigation Link ── */}
+      <Link href="/language-selection" className="mx-4 mt-3">
+        <View className="bg-lingua-blue rounded-2xl px-5 py-4 flex-row items-center justify-between">
+          <View className="gap-0.5">
+            <Text className="font-[Poppins_700Bold] text-[15px] text-white">
+              Language Selection
+            </Text>
+            <Text className="font-[Poppins_400Regular] text-[12px] text-white opacity-70">
+              Tap to choose your learning language
+            </Text>
+          </View>
+          <Text className="font-[Poppins_700Bold] text-[18px] text-white opacity-80">
+            →
+          </Text>
+        </View>
+      </Link>
+
+
       <View className="px-4 pt-6 gap-8">
 
         {/* ── Colors ── */}
