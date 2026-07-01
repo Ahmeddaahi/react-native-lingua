@@ -1,10 +1,11 @@
 import "../global.css";
 
+import { useLanguageStore } from "@/store/language-store";
 import { ClerkProvider, useAuth } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
+import { useFonts } from "expo-font";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useFonts } from "expo-font";
 import { useEffect } from "react";
 
 // Keep the splash screen visible while fonts + auth load
@@ -14,36 +15,48 @@ const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 
 if (!publishableKey) {
   throw new Error(
-    "Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY. Add it to the .env file."
+    "Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY. Add it to the .env file.",
   );
 }
 
 /**
- * Handles auth-based navigation:
- * - Signed in → redirect to home (/)
+ * Handles auth + language-selection navigation:
  * - Signed out → redirect to onboarding
+ * - Signed in, no language selected → redirect to language-selection
+ * - Signed in, language selected, on auth screen → redirect to home (/)
  */
 function AuthNavigationGuard() {
   const { isSignedIn, isLoaded } = useAuth();
+  const { selectedLanguageId, isHydrated } = useLanguageStore();
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded || !isHydrated) return;
 
     const inAuthScreen =
       segments[0] === "sign-in" ||
       segments[0] === "sign-up" ||
       segments[0] === "onboarding";
 
-    if (isSignedIn && inAuthScreen) {
-      // Signed in but on an auth screen → go home
-      router.replace("/");
-    } else if (!isSignedIn && !inAuthScreen && segments[0] !== "oauth-callback") {
-      // Not signed in and not on an auth/callback screen → go to onboarding
+    const inLanguageSelection = segments[0] === "language-selection";
+
+    if (!isSignedIn && !inAuthScreen && segments[0] !== "oauth-callback") {
+      // Not signed in → go to onboarding
       router.replace("/onboarding");
+    } else if (isSignedIn && !selectedLanguageId && !inLanguageSelection) {
+      // Signed in but no language chosen → pick a language first
+      router.replace("/language-selection");
+    } else if (
+      isSignedIn &&
+      selectedLanguageId &&
+      (inAuthScreen || inLanguageSelection)
+    ) {
+      // Signed in + language chosen but on an auth/language screen → go home
+      router.replace("/(tabs)");
     }
-  }, [isSignedIn, isLoaded, segments]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSignedIn, isLoaded, isHydrated, segments, selectedLanguageId]);
 
   return null;
 }

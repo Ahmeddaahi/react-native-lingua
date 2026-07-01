@@ -20,7 +20,7 @@ import {
 export const Link = (
   props: React.ComponentProps<typeof RouterLink> & { className?: string }
 ) => {
-  return useCssElement(RouterLink, props, { className: "style" });
+  return useCssElement(RouterLink as any, props as any, { className: "style" });
 };
 
 Link.Trigger = RouterLink.Trigger;
@@ -59,7 +59,7 @@ export const ScrollView = (
     contentContainerClassName?: string;
   }
 ) => {
-  return useCssElement(RNScrollView, props, {
+  return useCssElement(RNScrollView as any, props as any, {
     className: "style",
     contentContainerClassName: "contentContainerStyle",
   });
@@ -70,7 +70,7 @@ ScrollView.displayName = "CSS(ScrollView)";
 export const Pressable = (
   props: React.ComponentProps<typeof RNPressable> & { className?: string }
 ) => {
-  return useCssElement(RNPressable, props, { className: "style" });
+  return useCssElement(RNPressable as any, props as any, { className: "style" });
 };
 Pressable.displayName = "CSS(Pressable)";
 
@@ -90,7 +90,7 @@ export const AnimatedScrollView = (
     contentContainerClassName?: string;
   }
 ) => {
-  return useCssElement(Animated.ScrollView, props, {
+  return useCssElement(Animated.ScrollView as any, props as any, {
     className: "style",
     contentClassName: "contentContainerStyle",
     contentContainerClassName: "contentContainerStyle",
@@ -101,7 +101,7 @@ export const AnimatedScrollView = (
 function XXTouchableHighlight(
   props: React.ComponentProps<typeof RNTouchableHighlight>
 ) {
-  const { underlayColor, ...style } = StyleSheet.flatten(props.style) || {};
+  const { underlayColor, ...style } = (StyleSheet.flatten(props.style) as any) || {};
   return (
     <RNTouchableHighlight
       underlayColor={underlayColor as string | undefined}
@@ -114,6 +114,6 @@ function XXTouchableHighlight(
 export const TouchableHighlight = (
   props: React.ComponentProps<typeof RNTouchableHighlight>
 ) => {
-  return useCssElement(XXTouchableHighlight, props, { className: "style" });
+  return useCssElement(XXTouchableHighlight as any, props as any, { className: "style" });
 };
 TouchableHighlight.displayName = "CSS(TouchableHighlight)";

@@ -47,13 +47,13 @@ export default function VerificationModal({
 }: Props) {
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(""));
   const inputRefs = useRef<(TextInput | null)[]>([]);
-  const slideAnim = useRef(new Animated.Value(60)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
+  const [slideAnim] = useState(() => new Animated.Value(60));
+  const [opacityAnim] = useState(() => new Animated.Value(0));
 
   // Animate in/out
   useEffect(() => {
     if (visible) {
-      setCode(Array(CODE_LENGTH).fill(""));
+      setTimeout(() => setCode(Array(CODE_LENGTH).fill("")), 0);
       Animated.parallel([
         Animated.spring(slideAnim, {
           toValue: 0,
@@ -84,6 +84,7 @@ export default function VerificationModal({
         }),
       ]).start();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
   function handleChange(text: string, index: number) {
@@ -237,7 +238,11 @@ export default function VerificationModal({
 
 const styles = StyleSheet.create({
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: "rgba(13,19,43,0.45)",
   },
   kavContainer: {
