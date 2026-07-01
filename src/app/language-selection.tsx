@@ -11,9 +11,11 @@ import { useRouter } from 'expo-router';
 import { View, Text, TextInput } from '@/tw';
 import { LANGUAGES, LanguageWithMeta } from '@/data/languages';
 import { images } from '@/constants/images';
+import { useLanguageStore } from '@/store/language-store';
 
 export default function LanguageSelection() {
   const router = useRouter();
+  const { setSelectedLanguage } = useLanguageStore();
   const [selectedId, setSelectedId] = useState<string>('es');
   const [search, setSearch] = useState('');
 
@@ -24,8 +26,8 @@ export default function LanguageSelection() {
   const selected = LANGUAGES.find((l) => l.id === selectedId);
 
   const handleConfirm = () => {
-    // TODO: persist selected language to store
-    router.back();
+    setSelectedLanguage(selectedId);
+    router.replace('/');
   };
 
   return (

@@ -6,6 +6,7 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useFonts } from "expo-font";
 import { useEffect } from "react";
+import { useLanguageStore } from "@/store/language-store";
 
 // Keep the splash screen visible while fonts + auth load
 SplashScreen.preventAutoHideAsync();
@@ -19,12 +20,14 @@ if (!publishableKey) {
 }
 
 /**
- * Handles auth-based navigation:
- * - Signed in → redirect to home (/)
+ * Handles auth + language-selection navigation:
  * - Signed out → redirect to onboarding
+ * - Signed in, no language selected → redirect to language-selection
+ * - Signed in, language selected, on auth screen → redirect to home (/)
  */
 function AuthNavigationGuard() {
   const { isSignedIn, isLoaded } = useAuth();
+  const { selectedLanguageId } = useLanguageStore();
   const segments = useSegments();
   const router = useRouter();
 
@@ -36,14 +39,22 @@ function AuthNavigationGuard() {
       segments[0] === "sign-up" ||
       segments[0] === "onboarding";
 
-    if (isSignedIn && inAuthScreen) {
-      // Signed in but on an auth screen → go home
-      router.replace("/");
-    } else if (!isSignedIn && !inAuthScreen && segments[0] !== "oauth-callback") {
-      // Not signed in and not on an auth/callback screen → go to onboarding
+    const inLanguageSelection = segments[0] === "language-selection";
+
+
+
+    if (!isSignedIn && !inAuthScreen && segments[0] !== "oauth-callback") {
+      // Not signed in → go to onboarding
       router.replace("/onboarding");
+    } else if (isSignedIn && !selectedLanguageId && !inLanguageSelection) {
+      // Signed in but no language chosen → pick a language first
+      router.replace("/language-selection");
+    } else if (isSignedIn && selectedLanguageId && (inAuthScreen || inLanguageSelection)) {
+      // Signed in + language chosen but on an auth/language screen → go home
+      router.replace("/(tabs)");
     }
-  }, [isSignedIn, isLoaded, segments]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSignedIn, isLoaded, segments, selectedLanguageId]);
 
   return null;
 }

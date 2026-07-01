@@ -47,21 +47,21 @@ export default function VerificationModal({
 }: Props) {
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(""));
   const inputRefs = useRef<(TextInput | null)[]>([]);
-  const slideAnim = useRef(new Animated.Value(60));
-  const opacityAnim = useRef(new Animated.Value(0));
+  const [slideAnim] = useState(() => new Animated.Value(60));
+  const [opacityAnim] = useState(() => new Animated.Value(0));
 
   // Animate in/out
   useEffect(() => {
     if (visible) {
       setTimeout(() => setCode(Array(CODE_LENGTH).fill("")), 0);
       Animated.parallel([
-        Animated.spring(slideAnim.current, {
+        Animated.spring(slideAnim, {
           toValue: 0,
           useNativeDriver: true,
           damping: 18,
           stiffness: 200,
         }),
-        Animated.timing(opacityAnim.current, {
+        Animated.timing(opacityAnim, {
           toValue: 1,
           duration: 220,
           useNativeDriver: true,
@@ -72,19 +72,20 @@ export default function VerificationModal({
       });
     } else {
       Animated.parallel([
-        Animated.timing(slideAnim.current, {
+        Animated.timing(slideAnim, {
           toValue: 60,
           duration: 180,
           useNativeDriver: true,
         }),
-        Animated.timing(opacityAnim.current, {
+        Animated.timing(opacityAnim, {
           toValue: 0,
           duration: 180,
           useNativeDriver: true,
         }),
       ]).start();
     }
-  }, [visible, slideAnim, opacityAnim]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
 
   function handleChange(text: string, index: number) {
     if (loading) return;
@@ -144,8 +145,8 @@ export default function VerificationModal({
           style={[
             styles.sheet,
             {
-              opacity: opacityAnim.current,
-              transform: [{ translateY: slideAnim.current }],
+              opacity: opacityAnim,
+              transform: [{ translateY: slideAnim }],
             },
           ]}
         >
