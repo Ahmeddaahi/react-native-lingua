@@ -1,12 +1,12 @@
 import "../global.css";
 
+import { useLanguageStore } from "@/store/language-store";
 import { ClerkProvider, useAuth } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
+import { useFonts } from "expo-font";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useFonts } from "expo-font";
 import { useEffect } from "react";
-import { useLanguageStore } from "@/store/language-store";
 
 // Keep the splash screen visible while fonts + auth load
 SplashScreen.preventAutoHideAsync();
@@ -15,7 +15,7 @@ const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 
 if (!publishableKey) {
   throw new Error(
-    "Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY. Add it to the .env file."
+    "Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY. Add it to the .env file.",
   );
 }
 
@@ -27,12 +27,12 @@ if (!publishableKey) {
  */
 function AuthNavigationGuard() {
   const { isSignedIn, isLoaded } = useAuth();
-  const { selectedLanguageId } = useLanguageStore();
+  const { selectedLanguageId, isHydrated } = useLanguageStore();
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded || !isHydrated) return;
 
     const inAuthScreen =
       segments[0] === "sign-in" ||
@@ -41,20 +41,22 @@ function AuthNavigationGuard() {
 
     const inLanguageSelection = segments[0] === "language-selection";
 
-
-
     if (!isSignedIn && !inAuthScreen && segments[0] !== "oauth-callback") {
       // Not signed in → go to onboarding
       router.replace("/onboarding");
     } else if (isSignedIn && !selectedLanguageId && !inLanguageSelection) {
       // Signed in but no language chosen → pick a language first
       router.replace("/language-selection");
-    } else if (isSignedIn && selectedLanguageId && (inAuthScreen || inLanguageSelection)) {
+    } else if (
+      isSignedIn &&
+      selectedLanguageId &&
+      (inAuthScreen || inLanguageSelection)
+    ) {
       // Signed in + language chosen but on an auth/language screen → go home
       router.replace("/(tabs)");
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSignedIn, isLoaded, segments, selectedLanguageId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSignedIn, isLoaded, isHydrated, segments, selectedLanguageId]);
 
   return null;
 }

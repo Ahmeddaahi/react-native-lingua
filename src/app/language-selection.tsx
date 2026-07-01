@@ -1,59 +1,51 @@
-import React, { useState } from 'react';
-import {
-  TouchableOpacity,
-  ScrollView,
-  Image,
-  StyleSheet,
-  Platform,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { View, Text, TextInput } from '@/tw';
-import { LANGUAGES, LanguageWithMeta } from '@/data/languages';
-import { images } from '@/constants/images';
-import { useLanguageStore } from '@/store/language-store';
+import { images } from "@/constants/images";
+import { LANGUAGES, LanguageWithMeta } from "@/data/languages";
+import { useLanguageStore } from "@/store/language-store";
+import { Pressable, ScrollView, Text, TextInput, View } from "@/tw";
+import { useRouter } from "expo-router";
+import { useState } from "react";
+import { Image, Platform, StyleSheet } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function LanguageSelection() {
   const router = useRouter();
   const { setSelectedLanguage } = useLanguageStore();
-  const [selectedId, setSelectedId] = useState<string>('es');
-  const [search, setSearch] = useState('');
+  const [selectedId, setSelectedId] = useState<string>("es");
+  const [search, setSearch] = useState("");
 
   const filtered = LANGUAGES.filter((lang) =>
-    lang.name.toLowerCase().includes(search.toLowerCase())
+    lang.name.toLowerCase().includes(search.toLowerCase()),
   );
 
   const selected = LANGUAGES.find((l) => l.id === selectedId);
 
   const handleConfirm = () => {
     setSelectedLanguage(selectedId);
-    router.replace('/');
+    router.replace("/");
   };
 
   return (
     <SafeAreaView style={styles.safe}>
       {/* ── Header ── */}
       <View className="flex-row items-center px-5 pt-2 pb-4">
-        <TouchableOpacity
+        <Pressable
           onPress={() => router.back()}
-          activeOpacity={0.7}
-          style={styles.backBtn}
+          className="w-9 h-9 items-center justify-center"
         >
-          <Text className="font-[Poppins_700Bold] text-[20px] text-text-primary">‹</Text>
-        </TouchableOpacity>
+          <Text className="font-[Poppins_700Bold] text-[20px] text-text-primary">
+            ‹
+          </Text>
+        </Pressable>
         <Text className="font-[Poppins_700Bold] text-[18px] text-text-primary flex-1 text-center">
           Choose a language
         </Text>
         {/* spacer to keep title centered */}
-        <View style={{ width: 36 }} />
+        <View className="w-9" />
       </View>
 
       {/* ── Search Bar ── */}
       <View className="px-5 pb-4">
-        <View
-          className="flex-row items-center bg-surface rounded-full px-4"
-          style={styles.searchBar}
-        >
+        <View className="flex-row items-center bg-surface rounded-full px-4 h-12">
           <Text className="text-[18px] mr-3 text-text-secondary">🔍</Text>
           <TextInput
             className="flex-1 font-[Poppins_400Regular] text-[15px] text-text-primary"
@@ -67,7 +59,7 @@ export default function LanguageSelection() {
       </View>
 
       <ScrollView
-        style={{ flex: 1 }}
+        className="flex-1"
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
@@ -89,7 +81,7 @@ export default function LanguageSelection() {
         </View>
 
         {/* ── Spacer before earth image ── */}
-        <View style={{ height: 28 }} />
+        <View className="h-7" />
 
         {/* ── Earth Illustration ── */}
         <Image
@@ -100,16 +92,18 @@ export default function LanguageSelection() {
       </ScrollView>
 
       {/* ── Confirm Button (sticky footer) ── */}
-      <View style={styles.footer}>
-        <TouchableOpacity
+      <View
+        className="px-5 pt-3 bg-white border-t border-slate-200"
+        style={styles.footer}
+      >
+        <Pressable
           onPress={handleConfirm}
-          activeOpacity={0.85}
-          style={styles.confirmBtn}
+          className="bg-[#6C4EF5] rounded-2xl py-4 items-center justify-center"
         >
           <Text className="font-[Poppins_700Bold] text-[16px] text-white">
-            {selected ? `Start learning ${selected.name}` : 'Choose a language'}
+            {selected ? `Start learning ${selected.name}` : "Choose a language"}
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </SafeAreaView>
   );
@@ -127,13 +121,9 @@ type LanguageRowProps = {
 function LanguageRow({ lang, isSelected, isLast, onPress }: LanguageRowProps) {
   return (
     <>
-      <TouchableOpacity
+      <Pressable
         onPress={onPress}
-        activeOpacity={0.7}
-        style={[
-          styles.languageRow,
-          isSelected && styles.languageRowSelected,
-        ]}
+        className={`flex-row items-center px-4 py-3 rounded-2xl bg-white ${isSelected ? "border border-[#6C4EF5] bg-[#F0EDFF]" : ""}`}
       >
         {/* Flag */}
         <View style={styles.flagContainer}>
@@ -157,16 +147,20 @@ function LanguageRow({ lang, isSelected, isLast, onPress }: LanguageRowProps) {
         {/* Right indicator: checkmark if selected, chevron if not */}
         {isSelected ? (
           <View style={styles.checkmark}>
-            <Text className="text-white font-[Poppins_700Bold] text-[14px]">✓</Text>
+            <Text className="text-white font-[Poppins_700Bold] text-[14px]">
+              ✓
+            </Text>
           </View>
         ) : (
-          <Text className="text-text-secondary font-[Poppins_400Regular] text-[20px]">›</Text>
+          <Text className="text-text-secondary font-[Poppins_400Regular] text-[20px]">
+            ›
+          </Text>
         )}
-      </TouchableOpacity>
+      </Pressable>
 
       {/* Divider (not on selected or last item) */}
       {!isSelected && !isLast && (
-        <View style={styles.divider} />
+        <View className="h-px bg-slate-300 ml-[80px] mr-4" />
       )}
     </>
   );
@@ -175,17 +169,7 @@ function LanguageRow({ lang, isSelected, isLast, onPress }: LanguageRowProps) {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  searchBar: {
-    height: 50,
-    borderRadius: 999,
+    backgroundColor: "#FFFFFF",
   },
   searchInput: {
     height: 50,
@@ -194,24 +178,11 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 24,
   },
-  languageRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
-  },
-  languageRowSelected: {
-    backgroundColor: '#F0EDFF',
-    borderWidth: 2,
-    borderColor: '#6C4EF5',
-  },
   flagContainer: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   flagImage: {
     width: 48,
@@ -221,33 +192,15 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#6C4EF5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#E5E7EB',
-    marginLeft: 80,
-    marginRight: 16,
+    backgroundColor: "#6C4EF5",
+    alignItems: "center",
+    justifyContent: "center",
   },
   earthImage: {
-    width: '100%',
+    width: "100%",
     height: 200,
   },
   footer: {
-    paddingHorizontal: 20,
-    paddingBottom: Platform.OS === 'android' ? 20 : 12,
-    paddingTop: 12,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-  },
-  confirmBtn: {
-    backgroundColor: '#6C4EF5',
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingBottom: Platform.OS === "android" ? 20 : 12,
   },
 });
